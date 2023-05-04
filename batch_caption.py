@@ -35,7 +35,7 @@ model, vis_processors, _ = load_model_and_preprocess(
 
 
 # 读取json文件
-input_data_path = "/public/public_data/3DLLM/str3d_pth/ZN-train4.json"
+input_data_path = "/public/public_data/3DLLM/str3d_pth/ZN-train5.json"
 pairs = []
 with open(input_data_path, "r") as f:
     init_pairs = json.load(f)
@@ -48,7 +48,7 @@ with open(input_data_path, "r") as f:
             raise ValueError("Error: The value of key {} is not str or list".format(key))
 
 # 对每一个点云都进行相应的描述，把结果保存在output_data中
-with open("caption.txt", "w") as f:
+with open("caption_v3.txt", "w") as f:
     output_data = {}
     idx = 0
     while(idx < len(pairs)):
@@ -73,7 +73,7 @@ with open("caption.txt", "w") as f:
                 cloud[k] = cloud[k].unsqueeze(0)
 
 
-        result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": item[2]}, max_length=100, num_beams=1)
+        result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": item[2]}, max_length=150, num_beams=1)
         result = post_process(result, max_sentences=2)
         output_data[cloud_path] = [item[1],result[0]]
         print("Finish {} / {}".format(idx, len(pairs)))
@@ -82,9 +82,9 @@ with open("caption.txt", "w") as f:
         # structure 3d 有3179 个点云, 每隔 10个点云描述一次
         # 剩下的点云每间隔 5 个点云描述一次
         if(idx < 3179):
-            idx += 8
-        else:
             idx += 4
+        else:
+            idx += 1
 
-with open("caption.json", "w") as f:
+with open("caption_v3.json", "w") as f:
     f.write(json.dumps(output_data, ensure_ascii=False, indent=1))

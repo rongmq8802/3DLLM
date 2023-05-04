@@ -128,8 +128,9 @@ def caption():
 
         result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": prompt}, max_length=max_length, num_beams=1)
         result_processed = post_process(result, max_sentences=max_sentences)
+        return_data = {"text" : result_processed}
         # 把结果和输入的数据一起返回
-        return {"answer": result_processed, "init_answer": result}.update(data)
+        return {"status": 1, "data": return_data, "message" : "success"}
  
     elif(request.method == 'GET'):
         return {"error": "nothing to GET"}
