@@ -86,7 +86,7 @@ class Blip2ChatGLM(Blip2Base):
         # self.chatglm_model = None
         # 这里设置为True, 是为了避免 model.generate() 函数报错, 不知道为什么要这么做
         # self.chatglm_model.config.use_cache = True
-        logging.info("load llama model spend time: {:.4f} s".format(time.time() - t1))
+        logging.info("load ChatGLM model spend time: {:.4f} s".format(time.time() - t1))
          
         if self.chatglm_model is not None:
             for name, param in self.chatglm_model.named_parameters():
@@ -170,9 +170,9 @@ class Blip2ChatGLM(Blip2Base):
         image = samples["cloud"]
         device = image["coord"].device
         with self.maybe_autocast():
-            fake_cloud_encoder_result = torch.rand(image["coord"].shape[0], 256, 384).to(device)        # [batch_size, 256, 384]
-            image_embeds = self.ln_cloud(fake_cloud_encoder_result)
-            # image_embeds = self.ln_cloud(self.cloud_encoder(image))
+            # fake_cloud_encoder_result = torch.rand(image["coord"].shape[0], 256, 384).to(device)        # [batch_size, 256, 384]
+            # image_embeds = self.ln_cloud(fake_cloud_encoder_result)
+            image_embeds = self.ln_cloud(self.cloud_encoder(image))
             
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)
 
@@ -197,11 +197,15 @@ class Blip2ChatGLM(Blip2Base):
             prompt = samples["prompt"]
         else:
             prompt = [self.prompt] * image_embeds.shape[0]
-        
+         
         prompt_token = self.chatglm_tokenizer(prompt, return_tensors="pt", padding="longest").to(device)
+        
         # tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
-        prompt_attention_mask = prompt_token.attention_mask[:, 1:]
-        prompt_token.input_ids = prompt_token.input_ids[:, 1:]
+        # 注意，这里的 bos_token_id 是在input_ids 的最后面的, 不是最前面. 不是很理解为什么会这样, 可能与 tokenizer.padding_side="left" 有关
+        prompt_token.input_ids = prompt_token.input_ids[:, :-1]
+        prompt_attention_mask = prompt_token.attention_mask.squeeze(1) # [B, N, N]
+        prompt_attention_mask = prompt_attention_mask[:, :, 0].squeeze(-1)     # [B, N]
+        prompt_attention_mask = prompt_attention_mask[:, :-1]
         prompt_targets =  (torch.ones(prompt_attention_mask.size(), dtype=torch.long).to(device).fill_(-100))
         # prompt_embeds = self.chatglm_model.transformer.word_embeddings(prompt_token.input_ids)
         prompt_embeds = self.chatglm_model.transformer.word_embeddings(prompt_token.input_ids)
@@ -210,8 +214,10 @@ class Blip2ChatGLM(Blip2Base):
         end_text = [t + "\n" for t in samples["text_input"]]
         end_token = self.chatglm_tokenizer(end_text, return_tensors="pt", padding="longest",
                                             truncation=True, max_length=self.max_txt_len).to(device)
-        end_token.input_ids = end_token.input_ids[:, 1:]
-        end_attention_mask = end_token.attention_mask[:, 1:]
+        end_token.input_ids = end_token.input_ids[:, :-1]
+        end_attention_mask = end_token.attention_mask.squeeze(1) 
+        end_attention_mask = end_attention_mask[:, :, 0].squeeze(-1)     
+        end_attention_mask = end_attention_mask[:, :-1]
         # 把padding 的位置设置为 -100, 这样就不会计算loss
         end_targets = end_token.input_ids.masked_fill(
             end_token.input_ids == self.chatglm_tokenizer.pad_token_id, -100
@@ -232,6 +238,14 @@ class Blip2ChatGLM(Blip2Base):
             outputs = self.chatglm_model(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
+                return_dict=True,
+                labels=targets,
+            )
+        loss = outputs.loss
+
+        with self.maybe_autocast():
+            outputs = self.chatglm_model(
+                input_ids=input_ids,
                 return_dict=True,
                 labels=targets,
             )
@@ -384,9 +398,12 @@ class Blip2ChatGLM(Blip2Base):
             end_text = [prompt] * image_embeds.shape[0]
             end_token = self.chatglm_tokenizer(end_text, return_tensors="pt", padding="longest",
                                             truncation=True, max_length=self.max_txt_len).to(device)
-            # llama_tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
-            end_attention_mask = end_token.attention_mask[:, 1:]
-            end_token.input_ids = end_token.input_ids[:, 1:]
+            # tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
+            end_token.input_ids = end_token.input_ids[:, :-1]
+            end_attention_mask = end_token.attention_mask.squeeze(1) 
+            end_attention_mask = end_attention_mask[:, :, 0].squeeze(-1)     
+            end_attention_mask = end_attention_mask[:, :-1]
+
             end_embeds = self.chatglm_model.transformer.word_embeddings(end_token.input_ids)
 
             # 最后进行拼接  query + prompt
