@@ -210,11 +210,10 @@ class Blip2ChatGLM(Blip2Base):
         # prompt_embeds = self.chatglm_model.transformer.word_embeddings(prompt_token.input_ids)
         prompt_embeds = self.chatglm_model.transformer.word_embeddings(prompt_token.input_ids)
 
-        # llama_tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
+
         end_text = [t + "\n" for t in samples["text_input"]]
         end_token = self.chatglm_tokenizer(end_text, return_tensors="pt", padding="longest",
                                             truncation=True, max_length=self.max_txt_len).to(device)
-        end_token.input_ids = end_token.input_ids[:, :-1]
         end_attention_mask = end_token.attention_mask.squeeze(1) 
         end_attention_mask = end_attention_mask[:, :, 0].squeeze(-1)     
         end_attention_mask = end_attention_mask[:, :-1]
@@ -234,20 +233,18 @@ class Blip2ChatGLM(Blip2Base):
         inputs_embeds = torch.cat([inputs_chatglm, prompt_embeds, end_embeds], dim=1)
         attention_mask = torch.cat([atts_chatglm, prompt_attention_mask, end_attention_mask], dim=1)
 
-        with self.maybe_autocast():
-            outputs = self.chatglm_model(
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                return_dict=True,
-                labels=targets,
-            )
-        loss = outputs.loss
+        prompt_input_ids = prompt_token.input_ids
+        text_input_ids = end_token.input_ids
+        batch_size = prompt_input_ids.shape[0]
+        padding_input_ids = torch.ones(batch_size, inputs_chatglm.shape[1], dtype=torch.long).to(device).fill_(self.chatglm_tokenizer.pad_token_id)
+        input_ids = torch.cat([padding_input_ids, prompt_input_ids, text_input_ids], dim=1)
 
         with self.maybe_autocast():
             outputs = self.chatglm_model(
                 input_ids=input_ids,
                 return_dict=True,
                 labels=targets,
+                query_embeds=inputs_chatglm,
             )
         loss = outputs.loss
 
@@ -399,7 +396,6 @@ class Blip2ChatGLM(Blip2Base):
             end_token = self.chatglm_tokenizer(end_text, return_tensors="pt", padding="longest",
                                             truncation=True, max_length=self.max_txt_len).to(device)
             # tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
-            end_token.input_ids = end_token.input_ids[:, :-1]
             end_attention_mask = end_token.attention_mask.squeeze(1) 
             end_attention_mask = end_attention_mask[:, :, 0].squeeze(-1)     
             end_attention_mask = end_attention_mask[:, :-1]
@@ -418,9 +414,15 @@ class Blip2ChatGLM(Blip2Base):
                 input_embeds = input_embeds.repeat_interleave(num_beams, dim=0)
                 attention_mask = attention_mask.repeat_interleave(num_beams, dim=0)
 
+
+            batch_size = image_embeds.shape[0]
+            padding_input_ids = torch.ones(batch_size, inputs_query.shape[1], dtype=torch.long).to(device).fill_(self.chatglm_tokenizer.pad_token_id)
+            input_ids = torch.cat([padding_input_ids, end_token.input_ids], dim=1)
+
+
             outputs = self.chatglm_model.generate(
-                inputs_embeds=input_embeds,
-                attention_mask=attention_mask,
+                input_ids=input_ids,
+                query_embeds=inputs_query,
                 do_sample=use_nucleus_sampling,
                 top_p=top_p,
                 temperature=temperature,
