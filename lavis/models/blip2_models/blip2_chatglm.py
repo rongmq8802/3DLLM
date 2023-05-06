@@ -79,11 +79,13 @@ class Blip2ChatGLM(Blip2Base):
 
         t1 = time.time()
         # transformers 的读取代码
-        self.chatglm_tokenizer = AutoTokenizer.from_pretrained(chatglm_model_path, use_fast=False)
-        self.chatglm_model = AutoModel.from_pretrained(chatglm_model_path, torch_dtype=torch.float16)
+        self.chatglm_tokenizer = AutoTokenizer.from_pretrained(chatglm_model_path, use_fast=False, trust_remote_code=True)
+        # self.chatglm_model = AutoModel.from_pretrained(chatglm_model_path, torch_dtype=torch.float16, trust_remote_code=True)
+        self.chatglm_model = AutoModel.from_pretrained(chatglm_model_path, torch_dtype=torch.float16, trust_remote_code=True).half()
+        # self.chatglm_tokenizer = None
+        # self.chatglm_model = None
         # 这里设置为True, 是为了避免 model.generate() 函数报错, 不知道为什么要这么做
-        self.chatglm_model.config.use_cache = True
-        # self.llama_model = None
+        # self.chatglm_model.config.use_cache = True
         logging.info("load llama model spend time: {:.4f} s".format(time.time() - t1))
          
         if self.chatglm_model is not None:
@@ -168,9 +170,9 @@ class Blip2ChatGLM(Blip2Base):
         image = samples["cloud"]
         device = image["coord"].device
         with self.maybe_autocast():
-            # fake_cloud_encoder_result = torch.rand(image["coord"].shape[0], 256, 384).to(device)        # [batch_size, 256, 384]
-            # image_embeds = self.ln_cloud(fake_cloud_encoder_result)
-            image_embeds = self.ln_cloud(self.cloud_encoder(image))
+            fake_cloud_encoder_result = torch.rand(image["coord"].shape[0], 256, 384).to(device)        # [batch_size, 256, 384]
+            image_embeds = self.ln_cloud(fake_cloud_encoder_result)
+            # image_embeds = self.ln_cloud(self.cloud_encoder(image))
             
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)
 
@@ -187,7 +189,7 @@ class Blip2ChatGLM(Blip2Base):
         inputs_chatglm = self.chatglm_proj(query_output.last_hidden_state)
         atts_chatglm = torch.ones(inputs_chatglm.size()[:-1], dtype=torch.long).to(device)  # [B, 32]
 
-        self.chatglm_tokenizer.padding_side = "right"
+        self.chatglm_tokenizer.padding_side = "left"
         
         # 如果输入的数据中自带prompt，那么就用自带的prompt，每条数据自带的prompt可以不同
         # 如果输入的数据中没有prompt，那么就用模型的默认prompt，每条数据都用同一个prompt
@@ -201,7 +203,8 @@ class Blip2ChatGLM(Blip2Base):
         prompt_attention_mask = prompt_token.attention_mask[:, 1:]
         prompt_token.input_ids = prompt_token.input_ids[:, 1:]
         prompt_targets =  (torch.ones(prompt_attention_mask.size(), dtype=torch.long).to(device).fill_(-100))
-        prompt_embeds = self.chatglm_model.model.embed_tokens(prompt_token.input_ids)
+        # prompt_embeds = self.chatglm_model.transformer.word_embeddings(prompt_token.input_ids)
+        prompt_embeds = self.chatglm_model.transformer.word_embeddings(prompt_token.input_ids)
 
         # llama_tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
         end_text = [t + "\n" for t in samples["text_input"]]
@@ -213,7 +216,7 @@ class Blip2ChatGLM(Blip2Base):
         end_targets = end_token.input_ids.masked_fill(
             end_token.input_ids == self.chatglm_tokenizer.pad_token_id, -100
         )
-        end_embeds = self.chatglm_model.model.embed_tokens(end_token.input_ids)
+        end_embeds = self.chatglm_model.transformer.word_embeddings(end_token.input_ids)
 
 
         # [B, 32]
@@ -302,7 +305,7 @@ class Blip2ChatGLM(Blip2Base):
             prompt = [prompt] * image_embeds.size(0)
 
             llama_tokens = self.chatglm_tokenizer(prompt, return_tensors="pt").to(device)
-            input_embeds = self.chatglm_model.model.embed_tokens(llama_tokens.input_ids)
+            input_embeds = self.chatglm_model.transformer.word_embeddings(llama_tokens.input_ids)
             input_embeds = torch.cat([inputs_opt, input_embeds], dim=1)         # 把 learnable query 和 prompt embedding 结果拼接起来
             attention_mask = torch.cat([atts_opt, llama_tokens.attention_mask], dim=1)
 
@@ -384,7 +387,7 @@ class Blip2ChatGLM(Blip2Base):
             # llama_tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
             end_attention_mask = end_token.attention_mask[:, 1:]
             end_token.input_ids = end_token.input_ids[:, 1:]
-            end_embeds = self.chatglm_model.model.embed_tokens(end_token.input_ids)
+            end_embeds = self.chatglm_model.transformer.word_embeddings(end_token.input_ids)
 
             # 最后进行拼接  query + prompt
             input_embeds = torch.cat([inputs_query, end_embeds], dim=1)
