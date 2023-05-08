@@ -19,6 +19,7 @@ from lavis.models.blip2_models.blip2 import Blip2Base, disabled_train
 from transformers import AutoTokenizer, AutoModel
 import time
 from typing import List
+from torch.nn.utils.rnn import pad_sequence
 
 @registry.register_model("blip2_chatglm")
 class Blip2ChatGLM(Blip2Base):
@@ -41,7 +42,7 @@ class Blip2ChatGLM(Blip2Base):
         num_query_token=32,
         chatglm_model_path="",
         prompt=None,
-        max_txt_len=32,
+        max_txt_len=120,
         qformer_encoder_layer=12,
         point_cloud_encoder_pretrain_model_path = None,
     ):
@@ -101,8 +102,9 @@ class Blip2ChatGLM(Blip2Base):
                                   self.chatglm_model.config.hidden_size if self.chatglm_model is not None else 4096 
         )
 
-        self.max_txt_len = max_txt_len
+        self.max_txt_len = max_txt_len      # prompt + text 的最大长度, 指的是 input_ids 的最大长度, 不是文字本身的长度
         self.prompt = prompt
+        self.max_seq_len = self.max_txt_len + self.num_query_token + 1      # 送入 ChatGLM 的input_ids 的最大长度
 
 
     def set_model_path(self, path:str):
@@ -197,32 +199,38 @@ class Blip2ChatGLM(Blip2Base):
             prompt = samples["prompt"]
         else:
             prompt = [self.prompt] * image_embeds.shape[0]
-         
-        prompt_token = self.chatglm_tokenizer(prompt, return_tensors="pt", padding="longest").to(device)
+
+        text = samples["text_input"]
+        assert len(text) == len(prompt), "text 和 prompt 的数量不一致"
+        input_ids_list, labels_list = [], []
+        for p, t in zip(prompt, text):
+            prompt_ids = self.chatglm_tokenizer.encode(p, add_special_tokens=False)
+            text_ids = self.chatglm_tokenizer.encode(t, add_special_tokens=False)
+            max_text_id_len = self.max_txt_len - len(prompt_ids) - 3
+            if len(text_ids) > max_text_id_len:
+                text_ids = text_ids[:max_text_id_len]
+            input_ids = self.chatglm_tokenizer.build_inputs_with_special_tokens(prompt_ids, text_ids)   # 会额外增加三个token id
+
+            context_length = input_ids.index(self.chatglm_tokenizer.bos_token_id)
+            labels = [-100] * context_length + input_ids[context_length:]
+
+            pad_len = self.max_txt_len - len(input_ids)
+            input_ids = input_ids + [self.chatglm_tokenizer.pad_token_id] * pad_len
+            labels = labels + [-100] * pad_len
+
+            
+
+            input_ids_list.append(input_ids)
+            labels_list.append(labels)
+
+        input_ids = torch.tensor(input_ids_list).to(device)
+        targets = torch.tensor(labels_list).to(device)
         
-        # tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
-        # 注意，这里的 bos_token_id 是在input_ids 的最后面的, 不是最前面. 不是很理解为什么会这样, 可能与 tokenizer.padding_side="left" 有关
-        prompt_token.input_ids = prompt_token.input_ids[:, :-1]
-        prompt_targets =  (torch.ones(prompt_token.input_ids.size(), dtype=torch.long).to(device).fill_(-100))
-
-        text = [t + "\n" for t in samples["text_input"]]
-        text_token = self.chatglm_tokenizer(text, return_tensors="pt", padding="longest",
-                                            truncation=True, max_length=self.max_txt_len).to(device)
-        # 把padding 的位置设置为 -100, 这样就不会计算loss
-        text_targets = text_token.input_ids.masked_fill(
-            text_token.input_ids == self.chatglm_tokenizer.pad_token_id, -100
-        )
-
-        # [B, 32]
-        empty_targets = (torch.ones(atts_chatglm.size(), dtype=torch.long).to(device).fill_(-100))
-        # query + prompt + input_text
-        targets = torch.cat([empty_targets, prompt_targets, text_targets], dim=1)    # [B, 32] cat [B, N]  -> [B, 32+N]
-
-        # [B, 32] 的 input_ids, 里面的每一项都是 padding token
-        batch_size = image_embeds.shape[0]
-        padding_input_ids = torch.ones(batch_size, inputs_chatglm.shape[1], dtype=torch.long).to(device).fill_(self.chatglm_tokenizer.pad_token_id)
-        # 把所有的 input_ids 拼接起来
-        input_ids = torch.cat([padding_input_ids, prompt_token.input_ids, text_token.input_ids], dim=1)
+        # 把 learnable query 对应的占位用 input_ids 以及 lable 添加进去
+        pad_input_ids = torch.ones(input_ids.shape[0], self.num_query_token, dtype=torch.long).fill_(self.chatglm_tokenizer.pad_token_id).to(device)    # [B, 32]
+        pad_targets = torch.ones(targets.shape[0], self.num_query_token, dtype=torch.long).fill_(-100).to(device)    # [B, 32]
+        input_ids = torch.cat([pad_input_ids, input_ids], dim=1)
+        targets = torch.cat([pad_targets, targets], dim=1)
 
         with self.maybe_autocast():
             outputs = self.chatglm_model(
@@ -370,39 +378,24 @@ class Blip2ChatGLM(Blip2Base):
     
             # Q-Former 的 learnable query 映射到 llama 的特征空间后得到的特征以及 attention mask
             inputs_query = self.chatglm_proj(query_output.last_hidden_state)
-            atts_query = torch.ones(inputs_query.size()[:-1], dtype=torch.long).to(device)
 
             if "text_input" in samples.keys():
                 prompt = samples["text_input"]
             else:
                 prompt = self.prompt
 
-            end_text = [prompt] * image_embeds.shape[0]
-            end_token = self.chatglm_tokenizer(end_text, return_tensors="pt", padding="longest",
-                                            truncation=True, max_length=self.max_txt_len).to(device)
-            # tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
-            end_attention_mask = end_token.attention_mask.squeeze(1) 
-            end_attention_mask = end_attention_mask[:, :, 0].squeeze(-1)     
-            end_attention_mask = end_attention_mask[:, :-1]
-
-            end_embeds = self.chatglm_model.transformer.word_embeddings(end_token.input_ids)
-
-            # 最后进行拼接  query + prompt
-            input_embeds = torch.cat([inputs_query, end_embeds], dim=1)
-            attention_mask = torch.cat([atts_query, end_attention_mask], dim=1)
-
-            if use_nucleus_sampling:
-                input_embeds = input_embeds.repeat_interleave(num_captions, dim=0)
-                attention_mask = attention_mask.repeat_interleave(num_captions, dim=0)
-                num_beams = 1
-            else:
-                input_embeds = input_embeds.repeat_interleave(num_beams, dim=0)
-                attention_mask = attention_mask.repeat_interleave(num_beams, dim=0)
-
-
-            batch_size = image_embeds.shape[0]
-            padding_input_ids = torch.ones(batch_size, inputs_query.shape[1], dtype=torch.long).to(device).fill_(self.chatglm_tokenizer.pad_token_id)
-            input_ids = torch.cat([padding_input_ids, end_token.input_ids], dim=1)
+            # 把 prompt 变成 list
+            prompt = [prompt] if isinstance(prompt, str) else prompt
+            assert len(prompt) == image_embeds.size(0), "number of prompt != batch size"
+            input_ids_list = []
+            for p in prompt:
+                prompt_ids = self.chatglm_tokenizer.encode(p, add_special_tokens=True)
+                input_ids_list.append(torch.tensor(prompt_ids, dtype=torch.long).to(device))
+                
+            input_ids = pad_sequence(input_ids_list, batch_first=True, padding_value=self.chatglm_tokenizer.pad_token_id)
+            # 把 learnable query 对应的占位用 input_ids 添加进去
+            pad_input_ids = torch.ones(image_embeds.shape[0], self.num_query_token, dtype=torch.long).to(device).fill_(self.chatglm_tokenizer.pad_token_id)
+            input_ids = torch.cat([pad_input_ids, input_ids], dim=1)
 
 
             outputs = self.chatglm_model.generate(
@@ -428,89 +421,6 @@ class Blip2ChatGLM(Blip2Base):
             output_text = [text.strip() for text in output_text]
             
             # output_text = self.postprocess_text(output_text, device = device)
-            return output_text
-        
-    @torch.no_grad()
-    def generate2(
-        self,
-        samples,
-        use_nucleus_sampling=False,
-        num_beams=1,
-        max_length=30,
-        min_length=1,
-        top_p=0.95,
-        repetition_penalty=1.0,
-        length_penalty=1.0,
-        num_captions=1,
-        temperature=0.7,
-    ):
-        image = samples["cloud"]
-        device = image["coord"].device
-        with self.maybe_autocast():
-            # fake_cloud_encoder_result = torch.rand(image["coord"].shape[0], 256, 384).to(device)        # [batch_size, 256, 384]
-            # image_embeds = self.ln_cloud(fake_cloud_encoder_result)
-
-            image_embeds = self.ln_cloud(self.cloud_encoder(image))
-            image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)
-
-            query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
-            query_output = self.Qformer.bert(
-                query_embeds=query_tokens,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
-                return_dict=True,
-            )
-    
-            # Q-Former 的 learnable query 映射到 llama 的特征空间后得到的特征以及 attention mask
-            inputs_query = self.chatglm_proj(query_output.last_hidden_state)
-            atts_query = torch.ones(inputs_query.size()[:-1], dtype=torch.long).to(device)
-
-            if "text_input" in samples.keys():
-                prompt = samples["text_input"]
-            else:
-                prompt = self.prompt
-
-            end_text = [prompt] * image_embeds.shape[0]
-            end_token = self.chatglm_tokenizer(end_text, return_tensors="pt", padding="longest",
-                                            truncation=True, max_length=self.max_txt_len).to(device)
-            # tokenizer 会自动在输入的文本前面加上 bos token, 所以这里要减去1
-            end_attention_mask = end_token.attention_mask.squeeze(1) 
-            end_attention_mask = end_attention_mask[:, :, 0].squeeze(-1)     
-            end_attention_mask = end_attention_mask[:, :-1]
-
-            end_embeds = self.chatglm_model.transformer.word_embeddings(end_token.input_ids)
-
-            # 最后进行拼接  query + prompt
-            input_embeds = torch.cat([inputs_query, end_embeds], dim=1)
-            attention_mask = torch.cat([atts_query, end_attention_mask], dim=1)
-
-            if use_nucleus_sampling:
-                input_embeds = input_embeds.repeat_interleave(num_captions, dim=0)
-                attention_mask = attention_mask.repeat_interleave(num_captions, dim=0)
-                num_beams = 1
-            else:
-                input_embeds = input_embeds.repeat_interleave(num_beams, dim=0)
-                attention_mask = attention_mask.repeat_interleave(num_beams, dim=0)
-
-
-            batch_size = image_embeds.shape[0]
-            padding_input_ids = torch.ones(batch_size, inputs_query.shape[1], dtype=torch.long).to(device).fill_(self.chatglm_tokenizer.pad_token_id)
-            input_ids = torch.cat([padding_input_ids, end_token.input_ids], dim=1)
-
-
-            with self.maybe_autocast():
-                outputs = self.chatglm_model(
-                    input_ids=input_ids,
-                    return_dict=True,
-                    query_embeds=inputs_query,
-                )
-            loss = outputs.loss
-
-            # output_text = self.llama_tokenizer.decode(outputs.logits[0][self.num_query_token:].argmax(1))
-            output_text = self.chatglm_tokenizer.batch_decode(outputs.logits[:, input_ids.shape[1]:].argmax(2), 
-                                                        skip_special_tokens=True, clean_up_tokenization_spaces=True)
-            output_text = self.chatglm_tokenizer.batch_decode(outputs.logits[:,:].argmax(2), 
-                                                        skip_special_tokens=True, clean_up_tokenization_spaces=True)
             return output_text
         
 
