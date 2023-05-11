@@ -29,8 +29,12 @@ def post_process(text_list:List[str], max_sentences:int = 2) -> List[str]:
 
 device = torch.device("cuda")
 
+# model, vis_processors, _ = load_model_and_preprocess(
+#     name="blip2_llama", model_type="blip2_3d_caption", is_eval=True, device=device
+# )
+
 model, vis_processors, _ = load_model_and_preprocess(
-    name="blip2_llama", model_type="blip2_3d_caption", is_eval=True, device=device
+    name="blip2_chatglm", model_type="blip2_3d_caption_chatglm", is_eval=True, device=device
 )
 
 
@@ -48,7 +52,7 @@ with open(input_data_path, "r") as f:
             raise ValueError("Error: The value of key {} is not str or list".format(key))
 
 # 对每一个点云都进行相应的描述，把结果保存在output_data中
-with open("caption_v3.txt", "w") as f:
+with open("caption_v3_chatglm.txt", "w") as f:
     output_data = {}
     idx = 0
     while(idx < len(pairs)):
@@ -82,9 +86,9 @@ with open("caption_v3.txt", "w") as f:
         # structure 3d 有3179 个点云, 每隔 10个点云描述一次
         # 剩下的点云每间隔 5 个点云描述一次
         if(idx < 3179):
-            idx += 4
+            idx += 2
         else:
             idx += 1
 
-with open("caption_v3.json", "w") as f:
+with open("caption_v3_chatglm.json", "w") as f:
     f.write(json.dumps(output_data, ensure_ascii=False, indent=1))

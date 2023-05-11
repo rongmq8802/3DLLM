@@ -3,6 +3,12 @@ Author: Diantao Tu
 Date: 2023-04-24 18:24:23
 '''
 import torch 
+import shutil
+import tempfile
+import requests
+import os
+import time
+
 from lavis.models import load_model_and_preprocess
 from lavis.common.registry import registry
 from flask import request
@@ -21,12 +27,27 @@ model, vis_processors, _ = load_model_and_preprocess(
 
 # model = model.to(device)
 
-def load_point_cloud(path:str) -> Dict[str, torch.Tensor]:
+
+def save_url_to_file(url):
+    response = requests.get(url)
+    tmpdir = tempfile.mkdtemp()
+    file_name = os.path.basename(url)
+    file_path = os.path.join(tmpdir, file_name)
+    with open(file_path, 'wb') as f:
+        f.write(response.content)
+    return file_path
+
+
+def load_point_cloud(path_url: str) -> Dict[str, torch.Tensor]:
     """
     从文件中读取点云
     path: 点云路径,绝对路径
     return: 点云, 字典类型, 包含 "coord", "color", "semantic_gt" 三个key
     """
+    if path_url and path_url.startswith('http'):
+        path = save_url_to_file(path_url)
+    else:
+        path = path_url
     file_type = path.split(".")[-1]
     if file_type == "pth":
         cloud = torch.load(path)
@@ -67,8 +88,10 @@ def load_point_cloud(path:str) -> Dict[str, torch.Tensor]:
         cloud["semantic_gt"] = semantic_gt
     else:
         raise ValueError("file type {} not supported".format(file_type))
-    
+    if path_url and path_url.startswith('http'):
+        shutil.rmtree(os.path.dirname(path))
     return cloud
+
 
 def to_device(data, device):
     if isinstance(data, torch.Tensor):
@@ -117,8 +140,11 @@ def caption():
         prompt = data["prompt"] if "prompt" in data else "请描述一下这个三维场景。"
         max_sentences = data["max_sentences"] if "max_sentences" in data else 2
         max_length = data["max_length"] if "max_length" in data else 100
-
+        
+        start_time = time.time()
         cloud = load_point_cloud(cloud_path)
+        print(f"文件加载时间：{time.time() - start_time}")
+        start_time = time.time()
         cloud = vis_processors["eval"](cloud)
 
         for k in cloud.keys():
@@ -128,6 +154,7 @@ def caption():
 
         result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": prompt}, max_length=max_length, num_beams=1)
         result_processed = post_process(result, max_sentences=max_sentences)
+        print(f"推理时间：{time.time() - start_time}")
         return_data = {"text" : result_processed}
         # 把结果和输入的数据一起返回
         return {"status": 1, "data": return_data, "message" : "success"}

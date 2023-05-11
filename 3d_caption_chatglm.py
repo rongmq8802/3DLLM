@@ -68,7 +68,6 @@ parser.add_argument("--device", type=str, default="cuda", help="")
 args = parser.parse_args()
 
 device = torch.device("cuda")
-device = torch.device(args.device)
 
 
 model, vis_processors, _ = load_model_and_preprocess(
@@ -76,10 +75,12 @@ model, vis_processors, _ = load_model_and_preprocess(
 )
 
 
-cloud_path = "/data3/lyz/merge/train/scene0191_00.pth"
+cloud_path = "/public/public_data/3DLLM/4_23_rmq_sort_data/piano/scene0604_00_noceiling.pth"
 
-cloud = torch.load(cloud_path)
+# cloud = torch.load(cloud_path)
+cloud = load_point_cloud(cloud_path)
 cloud = vis_processors["eval"](cloud)
+
 
 for k in cloud.keys():
     if(isinstance(cloud[k], torch.Tensor)):
@@ -89,5 +90,5 @@ for k in cloud.keys():
 cloud_copy = cloud.copy()
 
 cloud = cloud_copy.copy()
-result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": "请描述一下这个三维场景。"}, max_length=150, num_beams=1)
+result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": "请描述一下这个三维场景。"}, max_length=100, num_beams=1)
 print(result)
