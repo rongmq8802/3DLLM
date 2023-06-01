@@ -24,6 +24,7 @@ def load_point_cloud(path:str) -> Dict[str, torch.Tensor]:
     file_type = path.split(".")[-1]
     if file_type == "pth":
         cloud = torch.load(path)
+        # 专门针对strucutred3D数据集的处理, 因为保存的 pth 是个tuple的格式, 而且点云的尺度很大, 需要归一化
         if(isinstance(cloud, tuple)):
             cloud = {"coord": cloud[0], "color": cloud[1], "semantic_gt": cloud[2]}
             cloud["color"] = ((cloud["color"] + 1) * 127.5).astype(np.uint8)
@@ -46,7 +47,17 @@ def load_point_cloud(path:str) -> Dict[str, torch.Tensor]:
         coords = np.ascontiguousarray(points[:, :3]).astype(np.float64)
         colors = np.ascontiguousarray(points[:, 3:6]).astype(np.float64)
         semantic_gt = np.zeros((coords.shape[0]), dtype=np.int64)
-        cloud["coord"] = coords
+        max_value = np.max(coords)
+        min_value = np.min(coords)
+        final_value = max(abs(max_value), abs(min_value))
+        # S3DIS/ScanNet/Structure3D三个数据集的尺度没有进行统一。
+        # 尤其对于Structure3D数据集，尺度非常大，所以我们在这设置一个阈值，
+        # 若final_value大于1000，则认为是Structure3D数据集，然后将点云的坐标归一化到[-5, 5]的范围内
+        # 对于智能化3层的场景, 我已经预先进行了归一化, 所以这里不会触发这个if语句
+        if final_value > 1000:
+            cloud["coord"] = coords / final_value * 5.0
+        else:
+            cloud["coord"] = coords
         cloud["color"] = colors
         cloud["semantic_gt"] = semantic_gt
     else:
