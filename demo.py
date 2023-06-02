@@ -151,6 +151,8 @@ def caption():
             if(isinstance(cloud[k], torch.Tensor)):
                 cloud[k] = cloud[k].to(device)
                 cloud[k] = cloud[k].unsqueeze(0)
+        print(f"文件预处理时间：{time.time() - start_time}")
+        start_time = time.time()
 
         result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": prompt}, max_length=max_length, num_beams=1)
         result_processed = post_process(result, max_sentences=max_sentences)
