@@ -12,11 +12,8 @@ import logging
 import argparse
 import numpy as np
 
-
-
-
-
-
+from point_cloud_loader import load_point_cloud
+W
 
 logging.basicConfig(
         level=logging.INFO,
@@ -51,21 +48,10 @@ cloud_path = "/public/public_data/3DLLM/merge/train/scene0191_00.pth"
 cloud_path = "/public/public_data/3DLLM/merge/train/Area_1/hallway_1.pth"
 cloud_path = "/public/public_data/3DLLM/merge/train/scene0604_00.pth"
 cloud_path = "/public/public_data/3DLLM/4_23_rmq_sort_data/piano/scene0604_00_noceiling.pth"
-cloud = torch.load(cloud_path)
 
-if(isinstance(cloud, tuple)):
-    cloud = {"coord": cloud[0], "color": cloud[1], "semantic_gt": cloud[2]}
-    cloud["color"] = ((cloud["color"] + 1) * 127.5).astype(np.uint8)
-    cloud["color"] = cloud["color"].astype(np.float64)
-    cloud["coord"] = cloud["coord"].astype(np.float64)
-    # 把 coord 中的值归一化到 [-5, 5] 之间
-    max_value = np.max(cloud["coord"])
-    min_value = np.min(cloud["coord"])
-    final_value = max(abs(max_value), abs(min_value))
-    cloud["coord"] = cloud["coord"] / final_value  * 5.0
 
+cloud = load_point_cloud(cloud_path)
 cloud = vis_processors["eval"](cloud)
-
 
 for k in cloud.keys():
     if(isinstance(cloud[k], torch.Tensor)):
@@ -75,87 +61,8 @@ for k in cloud.keys():
 cloud_copy = cloud.copy()
 
 
-
 cloud = cloud_copy.copy()
 result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": "请描述一下这个三维场景。"}, max_length=150, num_beams=1)
 print(result)
 
-cloud = cloud_copy.copy()
-result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": "请描述一下这个三维场景的结构布局。"}, max_length=100, num_beams=1)
-print(result)
 
-cloud = cloud_copy.copy()
-result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": "请描述一下这个三维点云。"}, max_length=100, num_beams=1)
-print(result)
-
-
-cloud = cloud_copy.copy()
-result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": " "}, max_length=100, num_beams=1)
-print(result)
-
-cloud = cloud_copy.copy()
-result = model.generate_with_hidden_prompt({"cloud":cloud}, max_length=100, num_beams=1)
-print(result)
-
-
-
-
-print("============generate with prompt=============")
-result = model.generate({"cloud":cloud, "text_input": "这是一个厕所"}, max_length=50, num_beams=1)
-print(result)
-
-cloud = cloud_copy.copy()
-print("============generate without prompt=============")
-result = model.generate({"cloud":cloud}, max_length=50, num_beams=1)
-print(result)
-
-cloud = cloud_copy.copy()
-print("============generate with hidden prompt=============")
-result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": "这是一个厕所"}, max_length=50, num_beams=1)
-print(result)
-
-cloud = cloud_copy.copy()
-print("============generate with hidden prompt=============")
-result = model.generate_with_hidden_prompt({"cloud":cloud}, max_length=50, num_beams=1)
-print(result)
-
-import json
-input_data_path = "/public/public_data/3DLLM/str3d_pth/ZN-train4.json"
-pairs = []
-with open(input_data_path, "r") as f:
-    init_pairs = json.load(f)
-    for key in init_pairs:
-        if isinstance(init_pairs[key], str):
-            pairs.append([key, init_pairs[key]])
-        elif isinstance(init_pairs[key], list):
-            pairs.append([key] + init_pairs[key])
-        else:
-            raise ValueError("Error: The value of key {} is not str or list".format(key))
-output_data = {}
-for i, item in enumerate(pairs):
-    cloud_path = item[0]
-    cloud = torch.load(cloud_path)
-    if(isinstance(cloud, tuple)):
-        cloud = {"coord": cloud[0], "color": cloud[1], "semantic_gt": cloud[2]}
-        cloud["color"] = ((cloud["color"] + 1) * 127.5).astype(np.uint8)
-        cloud["color"] = cloud["color"].astype(np.float64)
-        cloud["coord"] = cloud["coord"].astype(np.float64)
-        # 把 coord 中的值归一化到 [-5, 5] 之间
-        max_value = np.max(cloud["coord"])
-        min_value = np.min(cloud["coord"])
-        final_value = max(abs(max_value), abs(min_value))
-        cloud["coord"] = cloud["coord"] / final_value  * 5.0
-
-    cloud = vis_processors["eval"](cloud)
-    for k in cloud.keys():
-        if(isinstance(cloud[k], torch.Tensor)):
-            cloud[k] = cloud[k].to(device)
-            cloud[k] = cloud[k].unsqueeze(0)
-
-
-    result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": item[2]}, max_length=100, num_beams=1, max_sentences = 2)
-    output_data[cloud_path] = [item[1],result[0]]
-    print("Finish {} / {}".format(i, len(pairs)))
-
-with open("ZN-train4-predict.json", "w") as f:
-    f.write(json.dumps(output_data, ensure_ascii=False, indent=1))
