@@ -15,10 +15,10 @@ datasets:
     vis_processor:
       train:
         name: "cloud_train"
-        max_size: 80000
+        max_size: 65536
       eval:                       # eval 等价于 val + test
         name: "cloud_test"
-        max_size: 80000
+        max_size: 65536
     text_processor:
       train:
         name: "chinese_caption"   
@@ -37,11 +37,11 @@ run:
   warmup_lr: 1e-6
 
   weight_decay: 0.05
-  max_epoch: 40
-  batch_size_train: 8       # 每个卡的batch size
-  batch_size_eval: 2        # 原本为64
+  max_epoch: 200
+  batch_size_train: 2       # 每个卡的batch size
+  batch_size_eval: 2        # 这个是不是每张卡的batch size, 存疑
   num_workers: 8
-  warmup_steps: 5000
+  warmup_steps: 500
 
   seed: 42
   output_dir: "output/BLIP2/Pretrain_stage1"
@@ -52,7 +52,7 @@ run:
   evaluate: False 
   train_splits: ["train"]
   # test_splits: ["test"]
-  # valid_splits: ["val"]
+  valid_splits: ["val"]
 
   device: "cuda"
   world_size: 1

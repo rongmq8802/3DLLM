@@ -2,12 +2,12 @@ model:
   arch: blip2_llama
   load_finetuned: False
   load_pretrained: False      # 目前为了调试设为了False 实际使用时要设为True 而且要为下面的 pretrained 参数赋值
-  pretrained: ""
+  pretrained: "/home/tdt/3DLLM/lavis/output/BLIP2/Pretrain_stage1/20230417095/checkpoint_99.pth"             
   finetuned: ""
   
   # point transformer encoder
-  point_cloud_encoder_model: "point_transformer"
-  point_cloud_encoder_model_path: "/home/tdt/PointTransformer/model_best.pth"
+  point_cloud_encoder_model: "point_transformer"    # point_transformer
+  point_cloud_encoder_model_path: "/home/tdt/PointTransformer/scannet-512-model_best.pth"
   drop_path_rate: 0
   use_grad_checkpoint: False
   freeze_cloud_encoder: True
@@ -15,11 +15,11 @@ model:
 
   # Q-Former
   num_query_token: 32
-  qformer_encoder_layer: 12
+  qformer_encoder_layer: 2
 
   # Llama
   llama_model: "llama_chinese"        # 名字, 目前没有作用
-  pretrained_llama_path: "/home/tdt/Llama/"           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
+  pretrained_llama_path: "/home/tdt/llama-7b/"           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
   max_txt_len: 100                    # 这是分词器 tokenizer 输出的token的最大长度
 
 # 这里也有vis_processor 和 text_processor, 但是不要和数据集配置里的那两个搞混了

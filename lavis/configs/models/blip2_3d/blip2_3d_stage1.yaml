@@ -8,11 +8,11 @@ model:
 
   # point transformer encoder
   point_cloud_encoder_model: "point_transformer"
-  point_cloud_encoder_model_path: "/home/tdt/PointTransformer/model_best.pth"
+  point_cloud_encoder_model_path: "/home/tdt/PointTransformer/scannet-512-model_best.pth"
   drop_path_rate: 0
   use_grad_checkpoint: False
   freeze_cloud_encoder: True
 
   # Q-Former
   num_query_token: 32
-  qformer_encoder_layer: 12
+  qformer_encoder_layer: 10

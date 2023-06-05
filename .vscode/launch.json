@@ -5,18 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0",
+            },
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "train-multi-gpu-stage1",
             "type": "python",
             "request": "launch",
             "module": "torch.distributed.run",
             "justMyCode": true,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "4,5,6,7",
+                "CUDA_VISIBLE_DEVICES": "6,7",
             },
             "args": [
-                "--nproc_per_node=1",
+                "--nproc_per_node=2",
                 "${workspaceFolder}/train_3d.py",
-                "--cfg-path", "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage1.yaml",
+                "--cfg-path",
+                "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage1.yaml",
             ]
         },
         {
@@ -26,12 +38,13 @@
             "module": "torch.distributed.run",
             "justMyCode": true,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "4,5,6,7",
+                "CUDA_VISIBLE_DEVICES": "6,7",
             },
             "args": [
                 "--nproc_per_node=1",
                 "${workspaceFolder}/train_3d.py",
-                "--cfg-path", "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2.yaml",
+                "--cfg-path",
+                "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2.yaml",
             ]
         },
         {
@@ -40,11 +53,12 @@
             "request": "launch",
             "program": "${workspaceFolder}/train_3d.py",
             "env": {
-                "CUDA_VISIBLE_DEVICES": "4,5,6,7",
+                "CUDA_VISIBLE_DEVICES": "6,7",
             },
             "justMyCode": true,
             "args": [
-                "--cfg-path", "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage1.yaml",
+                "--cfg-path",
+                "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage1.yaml",
             ]
         },
         {
@@ -53,24 +67,41 @@
             "request": "launch",
             "program": "${workspaceFolder}/train_3d.py",
             "env": {
-                "CUDA_VISIBLE_DEVICES": "4,5,6,7",
+                "CUDA_VISIBLE_DEVICES": "2",
             },
             "justMyCode": true,
             "args": [
-                "--cfg-path", "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2.yaml",
+                "--cfg-path",
+                "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2.yaml",
+            ]
+        },
+        {
+            "name": "train-stage2-chatglm",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_3d.py",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0",
+            },
+            "justMyCode": true,
+            "args": [
+                "--cfg-path",
+                "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2_chatglm.yaml",
             ]
         },
         {
             "name": "caption",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/train_3d.py",
+            "program": "${workspaceFolder}/3d_caption.py",
             "env": {
                 "CUDA_VISIBLE_DEVICES": "6,7",
             },
             "justMyCode": true,
             "args": [
-                "--cfg-path", "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/train_caption.yaml",
+                // "--cfg-path", "/home/tdt/3DLLM/lavis/projects/blip2_3d/train/train_caption.yaml",
+                "--device",
+                "cpu",
             ]
         }
     ]
