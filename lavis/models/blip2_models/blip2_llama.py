@@ -80,8 +80,31 @@ class Blip2Llama(Blip2Base):
             layer.intermediate = None
 
         t1 = time.time()
-        # transformers 的读取代码
+        '''
+        读取Llama模型
         self.llama_tokenizer = AutoTokenizer.from_pretrained(llama_model_path, use_fast=False)
+        以上是原本的代码, 以下是张家俊老师提供的代码
+        '''
+        DEFAULT_PAD_TOKEN = "<unk>" # id:0
+        DEFAULT_EOS_TOKEN = "</s>"
+        DEFAULT_BOS_TOKEN = "<s>"
+        DEFAULT_UNK_TOKEN = "</s>"
+
+        self.llama_tokenizer = AutoTokenizer.from_pretrained(
+            llama_model_path,
+            model_max_length=2048,
+            padding_side="right",
+            use_fast=False
+        )
+        self.llama_tokenizer.add_special_tokens(
+            {
+                "eos_token": DEFAULT_EOS_TOKEN,
+                "bos_token": DEFAULT_BOS_TOKEN,
+                "unk_token": DEFAULT_UNK_TOKEN,
+                "pad_token": DEFAULT_PAD_TOKEN,
+            }
+        )
+        
         self.llama_model = LlamaForCausalLM.from_pretrained(llama_model_path, torch_dtype=torch.float16)
         # 这里设置为True, 是为了避免 model.generate() 函数报错, 不知道为什么要这么做
         self.llama_model.config.use_cache = True
@@ -103,13 +126,20 @@ class Blip2Llama(Blip2Base):
 
         self.max_txt_len = max_txt_len
 
-        # 对于prompt的优先级设定：
-        # 1. 如果输入的数据中自带prompt，那么就用自带的prompt，每条数据自带的prompt可以不同
-        # 2. 如果输入的数据中没有prompt，那么就用模型的默认prompt，每条数据都用同一个prompt
-        # 3. 模型默认的prompt是在模型构造的时候作为参数传入的，如果没有传入参数，那么就用程序中预先设置好的一句话
-        # front_prompt + query + prompt + end_prompt + input_text
+        '''
+        对于prompt的优先级设定：
+        1. 如果输入的数据中自带prompt，那么就用自带的prompt，每条数据自带的prompt可以不同
+        2. 如果输入的数据中没有prompt，那么就用模型的默认prompt，每条数据都用同一个prompt
+        3. 模型默认的prompt是在模型构造的时候作为参数传入的，如果没有传入参数，那么就用程序中预先设置好的一句话
+        front_prompt + query + prompt + end_prompt + input_text 才是最终的输入
+
+        以下的两个prompt是V1版的 Llama 用的
         self.front_prompt = "以下是一个描述任务的指令，请写一个完成该指令的适当回复。\n\n ### 指令:\n"
         self.end_prompt = "\n\n### 回复:"
+        '''
+        self.front_prompt = "###问题：\n"
+        self.end_prompt = "\n\n###答案："
+        
         if prompt is None:
             # self.prompt = "请描述一下这个三维点云。"
             self.prompt = "请描述一下这个三维场景的结构布局。"
