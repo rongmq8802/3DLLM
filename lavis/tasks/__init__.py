@@ -7,7 +7,6 @@
 
 from lavis.common.registry import registry
 from lavis.tasks.base_task import BaseTask
-from lavis.tasks.captioning import CaptionTask
 from lavis.tasks.image_text_pretrain import ImageTextPretrainTask
 from lavis.tasks.multimodal_classification import (
     MultimodalClassificationTask,
@@ -15,7 +14,6 @@ from lavis.tasks.multimodal_classification import (
 from lavis.tasks.retrieval import RetrievalTask
 from lavis.tasks.vqa import VQATask, GQATask, AOKVQATask
 from lavis.tasks.vqa_reading_comprehension import VQARCTask, GQARCTask
-from lavis.tasks.dialogue import DialogueTask
 from lavis.tasks.pointcloud_text_pretrain import PointCloudTextPretrainTask, PointCloudTextPretrainTaskStage2
 
 
@@ -33,7 +31,6 @@ __all__ = [
     "BaseTask",
     "AOKVQATask",
     "RetrievalTask",
-    "CaptionTask",
     "VQATask",
     "GQATask",
     "VQARCTask",
@@ -42,7 +39,6 @@ __all__ = [
     # "VideoQATask",
     # "VisualEntailmentTask",
     "ImageTextPretrainTask",
-    "DialogueTask",
     "PointCloudTextPretrainTask",
     "PointCloudTextPretrainTaskStage2",
 ]

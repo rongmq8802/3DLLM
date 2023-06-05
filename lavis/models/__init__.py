@@ -41,10 +41,8 @@ from lavis.models.blip2_models.blip2_chatglm import Blip2ChatGLM
 
 from lavis.models.pnp_vqa_models.pnp_vqa import PNPVQA
 from lavis.models.pnp_vqa_models.pnp_unifiedqav2_fid import PNPUnifiedQAv2FiD
-from lavis.models.img2prompt_models.img2prompt_vqa import Img2PromptVQA
 from lavis.models.med import XBertLMHeadDecoder
 from lavis.models.vit import VisionTransformerEncoder
-from lavis.models.clip_models.model import CLIP
 
 from lavis.models.gpt_models.gpt_dialogue import GPTDialogue
 
@@ -79,9 +77,7 @@ __all__ = [
     "Blip2Llama",
     "Blip2ChatGLM",
     "PNPVQA",
-    "Img2PromptVQA",
     "PNPUnifiedQAv2FiD",
-    "CLIP",
     "VisionTransformerEncoder",
     "XBertLMHeadDecoder",
     "GPTDialogue",
