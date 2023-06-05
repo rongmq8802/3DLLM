@@ -2,6 +2,7 @@
 Author: Diantao Tu
 Date: 2023-04-24 18:24:23
 '''
+import argparse
 import torch 
 import shutil
 import tempfile
@@ -16,16 +17,31 @@ from flask_api import FlaskAPI
 from typing import Dict, List
 import numpy as np
 import plyfile
+import logging
 
 app = FlaskAPI(__name__)
 
 device = torch.device("cuda")
 model, vis_processors, _ = load_model_and_preprocess(
-    name="blip2_llama", model_type="blip2_3d_caption", is_eval=True, device=device
+    name="blip2_llama", model_type="blip2_3d_caption_docker", is_eval=True, device=device
 )
-# del _
 
-# model = model.to(device)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Dialogue generaion models")
+    parser.add_argument(
+        "--model_dir", type=str, help="Path to pretrained model or model identifier from huggingface.co/models.", required=True,
+    )  
+    parser.add_argument(
+        "--port", type=int, default=8080, help="port number for poem generation service",
+    )
+    parser.add_argument(
+        "--log_file", type=str, default="./logs/serving.log", help="port number for poem generation service",
+    )
+
+    args = parser.parse_args()
+
+    return args
 
 
 def save_url_to_file(url):
@@ -143,7 +159,7 @@ def caption():
         
         start_time = time.time()
         cloud = load_point_cloud(cloud_path)
-        print(f"文件加载时间：{time.time() - start_time}")
+        logging.info(f"文件加载时间：{time.time() - start_time}")
         start_time = time.time()
         cloud = vis_processors["eval"](cloud)
 
@@ -151,12 +167,12 @@ def caption():
             if(isinstance(cloud[k], torch.Tensor)):
                 cloud[k] = cloud[k].to(device)
                 cloud[k] = cloud[k].unsqueeze(0)
-        print(f"文件预处理时间：{time.time() - start_time}")
+        logging.info(f"文件预处理时间：{time.time() - start_time}")
         start_time = time.time()
 
         result = model.generate_with_hidden_prompt({"cloud":cloud, "text_input": prompt}, max_length=max_length, num_beams=1)
         result_processed = post_process(result, max_sentences=max_sentences)
-        print(f"推理时间：{time.time() - start_time}")
+        logging.info(f"推理时间：{time.time() - start_time}")
         return_data = {"text" : result_processed}
         # 把结果和输入的数据一起返回
         return {"status": 1, "data": return_data, "message" : "success"}
@@ -169,4 +185,18 @@ def test():
     return {"test": "test_test"}
 
 if __name__ == "__main__":
+    args = parse_args()
+    print(args)
+
+    logging.basicConfig(level=logging.INFO, filename=args.log_file, filemode="a",
+                        format="%(asctime)s %(levelname)s %(message)s")
+    
+    point_transformer_path = os.path.join(args.model_path, "point_transformer.pth")
+    Qformer_path = os.path.join(args.model_path, "Qformer.pth")
+    llama_path = os.path.join(args.model_path, "llama/")
+
+    model.load_llama(llama_path)
+    model.load_cloud_encoder(point_transformer_path, freeze_point_cloud_encoder=True)
+    model.reload_from_checkpoint(12, Qformer_path)
+    
     app.run(host="0.0.0.0", port=5000, debug=False)

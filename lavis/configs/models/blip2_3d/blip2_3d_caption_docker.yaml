@@ -1,13 +1,13 @@
 model:
   arch: blip2_llama
   load_finetuned: False
-  load_pretrained: True      # 目前为了调试设为了False 实际使用时要设为True 而且要为下面的 pretrained 参数赋值
+  load_pretrained: False      # 目前为了调试设为了False 实际使用时要设为True 而且要为下面的 pretrained 参数赋值
   pretrained: "/model/blip2_stage2.pth"
   finetuned: "/model/blip2_stage2.pth"
   
   # point transformer encoder
   point_cloud_encoder_model: "point_transformer"
-  point_cloud_encoder_model_path: "/model/point_transformer.pth"
+  point_cloud_encoder_model_path: ""
   drop_path_rate: 0
   use_grad_checkpoint: False
   freeze_cloud_encoder: True
@@ -19,7 +19,7 @@ model:
 
   # Llama
   llama_model: "llama_chinese"        # 名字, 目前没有作用
-  pretrained_llama_path: "/model/llama/"           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
+  pretrained_llama_path: ""           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
   max_txt_len: 100                    # 这是分词器 tokenizer 输出的token的最大长度
 
 # 这里也有vis_processor 和 text_processor, 但是不要和数据集配置里的那两个搞混了

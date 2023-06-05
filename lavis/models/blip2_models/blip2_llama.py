@@ -39,7 +39,6 @@ class Blip2Llama(Blip2Base):
         use_grad_checkpoint=False,
         point_cloud_encoder_model = None,
         freeze_point_cloud_encoder = True,
-        max_cloud_size = 10000,
         num_query_token=32,
         llama_model_path="",
         prompt=None,
@@ -56,8 +55,9 @@ class Blip2Llama(Blip2Base):
         self.bert_model = None
         self.sim_threshold = 0.8
      
+
         self.cloud_encoder, self.ln_cloud = self.init_cloud_encoder(
-            point_cloud_encoder_model, max_cloud_size, drop_path_rate, use_grad_checkpoint, point_cloud_encoder_pretrain_model_path
+            point_cloud_encoder_model, point_cloud_encoder_pretrain_model_path
         )
         if freeze_point_cloud_encoder:
             for name, param in self.cloud_encoder.named_parameters():
@@ -79,47 +79,12 @@ class Blip2Llama(Blip2Base):
             layer.output = None
             layer.intermediate = None
 
-        t1 = time.time()
-        '''
-        读取Llama模型
-        self.llama_tokenizer = AutoTokenizer.from_pretrained(llama_model_path, use_fast=False)
-        以上是原本的代码, 以下是张家俊老师提供的代码
-        '''
-        DEFAULT_PAD_TOKEN = "<unk>" # id:0
-        DEFAULT_EOS_TOKEN = "</s>"
-        DEFAULT_BOS_TOKEN = "<s>"
-        DEFAULT_UNK_TOKEN = "</s>"
 
-        self.llama_tokenizer = AutoTokenizer.from_pretrained(
-            llama_model_path,
-            model_max_length=2048,
-            padding_side="right",
-            use_fast=False
-        )
-        self.llama_tokenizer.add_special_tokens(
-            {
-                "eos_token": DEFAULT_EOS_TOKEN,
-                "bos_token": DEFAULT_BOS_TOKEN,
-                "unk_token": DEFAULT_UNK_TOKEN,
-                "pad_token": DEFAULT_PAD_TOKEN,
-            }
-        )
-        
-        self.llama_model = LlamaForCausalLM.from_pretrained(llama_model_path, torch_dtype=torch.float16)
-        # 这里设置为True, 是为了避免 model.generate() 函数报错, 不知道为什么要这么做
-        self.llama_model.config.use_cache = True
-        # self.llama_model = None
-        logging.info("load llama model spend time: {:.4f} s".format(time.time() - t1))
-         
-        if self.llama_model is not None:
-            for name, param in self.llama_model.named_parameters():
-                param.requires_grad = False
-        # 给的 llama-Chinese 模型中使用的是 </s> 作为结束符
-        self.eos_token_id = self.llama_tokenizer("</s>", add_special_tokens=False).input_ids[0]
-
-        # 增加 pad token 不然二阶段会报错 ValueError: Asking to pad but the tokenizer does not have a padding token.
-        self.llama_tokenizer.pad_token = self.llama_tokenizer.eos_token 
-
+        self.llama_model = None
+        self.llama_tokenizer = None
+        if(len(llama_model_path) > 0):
+            self.load_llama(llama_model_path)
+            
         self.llama_proj = nn.Linear(self.Qformer.config.hidden_size, 
                                   self.llama_model.config.hidden_size if self.llama_model is not None else 5120 
         )
@@ -166,6 +131,58 @@ class Blip2Llama(Blip2Base):
         )
         self.load_checkpoint(checkpoint_path)
         self.set_model_path(checkpoint_path)
+
+    def load_llama(self, path:str):
+        if self.llama_model is not None:
+            del self.llama_model
+        if self.llama_tokenizer is not None:
+            del self.llama_tokenizer
+
+        t1 = time.time()
+        DEFAULT_PAD_TOKEN = "<unk>" # id:0
+        DEFAULT_EOS_TOKEN = "</s>"
+        DEFAULT_BOS_TOKEN = "<s>"
+        DEFAULT_UNK_TOKEN = "</s>"
+
+        self.llama_tokenizer = AutoTokenizer.from_pretrained(
+            path,
+            model_max_length=2048,
+            padding_side="right",
+            use_fast=False
+        )
+        self.llama_tokenizer.add_special_tokens(
+            {
+                "eos_token": DEFAULT_EOS_TOKEN,
+                "bos_token": DEFAULT_BOS_TOKEN,
+                "unk_token": DEFAULT_UNK_TOKEN,
+                "pad_token": DEFAULT_PAD_TOKEN,
+            }
+        )
+        
+        self.llama_model = LlamaForCausalLM.from_pretrained(path, torch_dtype=torch.float16)
+        # 这里设置为True, 是为了避免 model.generate() 函数报错, 不知道为什么要这么做
+        self.llama_model.config.use_cache = True
+        # self.llama_model = None
+        logging.info("load llama model spend time: {:.4f} s".format(time.time() - t1))
+         
+        if self.llama_model is not None:
+            for name, param in self.llama_model.named_parameters():
+                param.requires_grad = False
+        # 给的 llama-Chinese 模型中使用的是 </s> 作为结束符
+        self.eos_token_id = self.llama_tokenizer("</s>", add_special_tokens=False).input_ids[0]
+
+        # 增加 pad token 不然二阶段会报错 ValueError: Asking to pad but the tokenizer does not have a padding token.
+        self.llama_tokenizer.pad_token = self.llama_tokenizer.eos_token
+
+    def load_cloud_encoder(self, path:str, freeze_point_cloud_encoder:bool=True):
+        self.cloud_encoder, self.ln_cloud = self.init_cloud_encoder("point_transformer", path)
+        if freeze_point_cloud_encoder:
+            for name, param in self.cloud_encoder.named_parameters():
+                param.requires_grad = False
+            self.cloud_encoder = self.cloud_encoder.eval()
+            self.cloud_encoder.train = disabled_train
+            logging.info("freeze point cloud encoder")
+
 
     def comupte_simililiarity(self, text:List[str], device)->float:
         if(len(text) <= 1):
