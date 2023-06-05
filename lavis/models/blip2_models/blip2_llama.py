@@ -31,6 +31,7 @@ class Blip2Llama(Blip2Base):
     PRETRAINED_MODEL_CONFIG_DICT = {
         "blip2_3d_stage2": "configs/models/blip2_3d/blip2_3d_stage2.yaml",
         "blip2_3d_caption": "configs/models/blip2_3d/blip2_3d_caption.yaml",
+        "blip2_3d_caption_docker": "configs/models/blip2_3d/blip2_3d_caption_docker.yaml",
     }
 
     def __init__(

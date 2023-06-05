@@ -191,12 +191,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, filename=args.log_file, filemode="a",
                         format="%(asctime)s %(levelname)s %(message)s")
     
-    point_transformer_path = os.path.join(args.model_path, "point_transformer.pth")
-    Qformer_path = os.path.join(args.model_path, "Qformer.pth")
-    llama_path = os.path.join(args.model_path, "llama/")
+    point_transformer_path = os.path.join(args.model_dir, "point_transformer.pth")
+    Qformer_path = os.path.join(args.model_dir, "Qformer.pth")
+    llama_path = os.path.join(args.model_dir, "llama/")
 
     model.load_llama(llama_path)
     model.load_cloud_encoder(point_transformer_path, freeze_point_cloud_encoder=True)
     model.reload_from_checkpoint(12, Qformer_path)
+    model = model.to(device)
     
     app.run(host="0.0.0.0", port=5000, debug=False)

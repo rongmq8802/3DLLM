@@ -7,7 +7,7 @@ model:
   
   # point transformer encoder
   point_cloud_encoder_model: "point_transformer"
-  point_cloud_encoder_model_path: ""
+  # point_cloud_encoder_model_path: ""
   drop_path_rate: 0
   use_grad_checkpoint: False
   freeze_cloud_encoder: True
@@ -19,7 +19,7 @@ model:
 
   # Llama
   llama_model: "llama_chinese"        # 名字, 目前没有作用
-  pretrained_llama_path: ""           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
+  # pretrained_llama_path: ""           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
   max_txt_len: 100                    # 这是分词器 tokenizer 输出的token的最大长度
 
 # 这里也有vis_processor 和 text_processor, 但是不要和数据集配置里的那两个搞混了
