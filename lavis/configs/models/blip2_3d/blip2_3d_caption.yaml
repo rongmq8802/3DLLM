@@ -1,13 +1,15 @@
 model:
   arch: blip2_llama
-  load_finetuned: False
+  load_finetuned: False 
   load_pretrained: True      # 目前为了调试设为了False 实际使用时要设为True 而且要为下面的 pretrained 参数赋值
-  pretrained: "/public/public_data/3DLLM/pretrained_model/stage2/checkpoint_99.pth"
-  finetuned: "/public/public_data/3DLLM/pretrained_model/stage2/checkpoint_99.pth"
+  # pretrained: "/public/home/mengqi_rong8/Code/3DLLM/lavis/output/BLIP2/Pretrain_stage2/cap_and_structure_v4/checkpoint_16.pth"
+  pretrained: "/public/home/mengqi_rong8/Code/3DLLM/lavis/output/BLIP2/Pretrain_stage2_llama_v2/cap_and_structure_v4/checkpoint_30.pth"
+  finetuned: "/public/home/mengqi_rong8/Code/3DLLM/lavis/output/BLIP2/Pretrain_stage2/cap_and_structure_v3/checkpoint_8.pth"
   
   # point transformer encoder
   point_cloud_encoder_model: "point_transformer"
-  point_cloud_encoder_model_path: "/public/public_data/3DLLM/pretrained_model/point-transformers-384/model_best.pth"
+  point_cloud_encoder_model_path: "/public/home/mengqi_rong8/CheckPoint/Combine_final/model/resave_best.pth"
+  # point_cloud_encoder_model_path : "/public/home/mengqi_rong8/CheckPoint/S3DIS/model/resave_best.pth"
   drop_path_rate: 0
   use_grad_checkpoint: False
   freeze_cloud_encoder: True
@@ -19,7 +21,8 @@ model:
 
   # Llama
   llama_model: "llama_chinese"        # 名字, 目前没有作用
-  pretrained_llama_path: "/public/public_data/3DLLM/pretrained_model/llama-chinese-13b/"           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
+  # pretrained_llama_path: "/public/public_data/3DLLM/pretrained_model/llama-chinese-13b/"           # 预训练的llama模型的保存路径, 注意是一个文件夹, 绝对路径
+  pretrained_llama_path: "/public/public_data/3DLLM/pretrained_model/wair_13B_v6p8_20230602/checkpoint-6000/"
   max_txt_len: 100                    # 这是分词器 tokenizer 输出的token的最大长度
 
 # 这里也有vis_processor 和 text_processor, 但是不要和数据集配置里的那两个搞混了

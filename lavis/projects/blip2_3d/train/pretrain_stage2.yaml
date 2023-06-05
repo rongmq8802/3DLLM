@@ -6,9 +6,9 @@
 model:
   arch: blip2_llama                  # 对应于类型的名字, 在注册表里注册的名字
   model_type: blip2_3d_stage2        # 这是对应于config/models/xxxx.json 里面有模型的具体参数细节, 上面的类里面会根据 model_type 的值选择不同的yaml加载
-  # TODO: support stage 1 pretraining from scratch (load_pretrained=False does not have effect as of now)
-  load_pretrained: True 
-  pretrained: /home/tdt/3DLLM/lavis/output/BLIP2/Pretrain_stage1/20230417095/checkpoint_99.pth
+  # load_pretrained: True 
+  # pretrained: /public/public_data/3DLLM/pretrained_model/stage1/combine_qformer_12.pth
+  prompt: 请描述一下这个三维场景。      # 这个prompt是模型默认的prompt, 如果输入数据中有其他的，那么就会把它覆盖掉
 
 
 datasets:
@@ -16,17 +16,17 @@ datasets:
     vis_processor:
       train:
         name: "cloud_train"
-        max_size: 10000
+        max_size: 65536
       eval:                       # eval 等价于 val + test
         name: "cloud_test"
-        max_size: 10000
+        max_size: 65536
     text_processor:
       train:
         name: "chinese_caption"   
-        max_words: 50
+        max_words: 100
       eval:
         name: "chinese_caption"
-        max_words: 50
+        max_words: 100
 
 run:
   task: pointcloud_text_pretrain_stage2
@@ -37,20 +37,21 @@ run:
   warmup_lr: 1e-6
 
   weight_decay: 0.05
-  max_epoch: 10
-  batch_size_train: 4
+  max_epoch: 50
+  batch_size_train: 8
   batch_size_eval: 4
-  num_workers: 4
+  num_workers: 12
   warmup_steps: 2000
 
   seed: 42
-  output_dir: "output/BLIP2/Pretrain_stage2"
+  output_dir: "output/BLIP2/Pretrain_stage2_llama_v2"
 
   amp: True
   resume_ckpt_path: null
 
   evaluate: False 
   train_splits: ["train"]
+  # valid_splits: ["val"]
 
   device: "cuda"
   world_size: 1

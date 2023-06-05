@@ -8,7 +8,7 @@ model:
 
   # point transformer encoder
   point_cloud_encoder_model: "point_transformer"
-  point_cloud_encoder_model_path: "/home/tdt/PointTransformer/model_best.pth"
+  point_cloud_encoder_model_path: "/public/home/mengqi_rong8/CheckPoint/Combine_final/model/resave_best.pth"
   drop_path_rate: 0
   use_grad_checkpoint: False
   freeze_cloud_encoder: True

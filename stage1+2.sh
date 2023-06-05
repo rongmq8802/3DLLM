@@ -30,12 +30,10 @@ python -m torch.distributed.run \
         model.pretrained=/public/home/mengqi_rong8/Code/3DLLM/lavis/output/BLIP2/Pretrain_stage1/${job_id}/checkpoint_best.pth
 
 
-OMP_NUM_THREADS=8 CUDA_VISIBLE_DEVICES=5,6,7 \
+OMP_NUM_THREADS=2 CUDA_VISIBLE_DEVICES=1,2 \
 python -m torch.distributed.run \
-        --nproc_per_node=3 \
+        --nproc_per_node=2 \
         --master_port=28882 \
         train_3d.py \
         --cfg-path /public/home/mengqi_rong8/Code/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2.yaml \
-        --job_id cap_and_structure_v3 \
-        --options model.load_pretrained=True \
-        model.pretrained=/public/home/mengqi_rong8/Code/3DLLM/lavis/output/BLIP2/Pretrain_stage2/cap_and_structure_v2/checkpoint_38.pth
+        --job_id cap_and_structure_v4 
