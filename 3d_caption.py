@@ -13,7 +13,7 @@ import argparse
 import numpy as np
 
 from point_cloud_loader import load_point_cloud
-W
+
 
 logging.basicConfig(
         level=logging.INFO,
