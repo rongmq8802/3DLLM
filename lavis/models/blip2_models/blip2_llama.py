@@ -139,6 +139,8 @@ class Blip2Llama(Blip2Base):
         '''
         self.front_prompt = "###问题：\n"
         self.end_prompt = "\n\n###答案："
+        # self.front_prompt = "以下是一个描述任务的指令，请写一个完成该指令的适当回复。\n\n ### 指令:\n"
+        # self.end_prompt = "\n\n### 回复:"
         
         if prompt is None:
             # self.prompt = "请描述一下这个三维点云。"
