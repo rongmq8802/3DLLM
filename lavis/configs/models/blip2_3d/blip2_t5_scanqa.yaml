@@ -1,0 +1,19 @@
+model:
+  arch: blip2_t5_scanqa
+  load_finetuned: False
+
+  # pretrained: "/home/rmq2/3DLLM_2/Combine_final/model/resave_best.pth"
+  # finetuned: ""
+
+  # point transformer encoder
+  point_cloud_encoder_model: "point_transformer"
+  point_cloud_encoder_model_path: "/home/rmq2/3DLLM_2/Combine_final/model/resave_best.pth"
+  drop_path_rate: 0
+  use_grad_checkpoint: False
+  freeze_cloud_encoder: True
+
+  # Q-Former
+  num_query_token: 32
+  t5_model: "/data4/rmq/ScanNet/flan-t5-xl"
+  # prompt: ""
+  max_txt_len : 400

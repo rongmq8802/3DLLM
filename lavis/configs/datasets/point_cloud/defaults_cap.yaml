@@ -1,0 +1,27 @@
+datasets:
+  3d_caption:
+    data_type: "pointcloud"
+    build_info:
+      annotations:
+        train:
+          # storage: "/public/public_data/3DLLM/4_23_rmq_sort_data/piano/scene0604_00_noceiling.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-train+test_text.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-train2.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-train3.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-train4.json"
+          storage: "/data4/rmq/lavis/scannet/ZN-scannet_train.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-val_text.json"
+          # storage:  "/public/public_data/3DLLM/s3dis_text/ZN-s3dis_text.json"            # 这里放一个 json 文件，里面保存点云路径以及相对应的文本
+          # storage: "/public/public_data/3DLLM/merge/ZN-merge_train.json"
+        # test:
+        #   storage: "xxxxx.json"
+        val:
+          storage: "/data4/rmq/lavis/scannet/ZN-scannet_val.json" 
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-val4.json" 
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-val3.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-val2.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-train+test_text.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-val_text.json"
+          # storage: "/public/public_data/3DLLM/str3d_pth/ZN-test_text.json"
+          # storage: "/public/public_data/3DLLM/s3dis_text/ZN-s3dis_text.json"
+          # storage: "/public/public_data/3DLLM/merge/ZN-merge_val.json"

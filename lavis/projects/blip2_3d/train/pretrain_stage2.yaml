@@ -1,0 +1,59 @@
+ # Copyright (c) 2022, salesforce.com, inc.
+ # All rights reserved.
+ # SPDX-License-Identifier: BSD-3-Clause
+ # For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+
+model:
+  arch: blip2_llama                  # 对应于类型的名字, 在注册表里注册的名字
+  model_type: blip2_3d_stage2        # 这是对应于config/models/xxxx.json 里面有模型的具体参数细节, 上面的类里面会根据 model_type 的值选择不同的yaml加载
+  # load_pretrained: True 
+  # pretrained: /public/public_data/3DLLM/pretrained_model/stage1/combine_qformer_12.pth
+  prompt: 请描述一下这个三维场景。      # 这个prompt是模型默认的prompt, 如果输入数据中有其他的，那么就会把它覆盖掉
+
+
+datasets:
+  3d_caption:                     # 数据集的名字, 对应于 Builder, 然后对应于 config/datasets/point_cloud/xxxx.json
+    vis_processor:
+      train:
+        name: "cloud_train"
+        max_size: 65536
+      eval:                       # eval 等价于 val + test
+        name: "cloud_test"
+        max_size: 65536
+    text_processor:
+      train:
+        name: "chinese_caption"   
+        max_words: 100
+      eval:
+        name: "chinese_caption"
+        max_words: 100
+
+run:
+  task: pointcloud_text_pretrain_stage2
+  # optimizer
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 1e-4
+  min_lr: 1e-5
+  warmup_lr: 1e-6
+
+  weight_decay: 0.05
+  max_epoch: 50
+  batch_size_train: 8
+  batch_size_eval: 4
+  num_workers: 12
+  warmup_steps: 2000
+
+  seed: 42
+  output_dir: "output/BLIP2/Pretrain_stage2_llama_v2"
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False 
+  train_splits: ["train"]
+  # valid_splits: ["val"]
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: True

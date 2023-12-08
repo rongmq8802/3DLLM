@@ -1,0 +1,15 @@
+datasets:
+  scanqa:
+    data_type: "scanqa"
+    build_info:
+      annotations:
+        train:
+          storage: "/data4/rmq/ScanNet/ScanQA/ScanQA_v1.0_train.json"
+        val:
+          storage: "/data4/rmq/ScanNet/ScanQA/ScanQA_v1.0_val.json" 
+      pcdir:
+        train:
+          storage: "/data4/rmq/lavis/scannet/train"
+        val:
+          storage: "/data4/rmq/lavis/scannet/val"
+

@@ -1,0 +1,18 @@
+model:
+  arch: blip2_3d_stage1
+  load_finetuned: False
+  load_pretrained: False
+
+  # pretrained: ""
+  # finetuned: ""
+
+  # point transformer encoder
+  point_cloud_encoder_model: "point_transformer"
+  point_cloud_encoder_model_path: "/home/rmq2/3DLLM_2/Combine_final/model/resave_best.pth"
+  drop_path_rate: 0
+  use_grad_checkpoint: False
+  freeze_cloud_encoder: True
+
+  # Q-Former
+  num_query_token: 32
+  qformer_encoder_layer: 12

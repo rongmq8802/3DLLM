@@ -1,0 +1,89 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "train-multi-gpu-stage1",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "justMyCode": true,
+            "args": [
+                "--nproc_per_node=1",
+                "${workspaceFolder}/train_3d.py",
+                "--cfg-path", "/home/rmq2/3DLLM_2/lavis/projects/blip2_3d/train/pretrain_stage1.yaml",
+            ]
+        },
+        {
+            "name": "train-multi-gpu-stage2",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "justMyCode": true,
+            "args": [
+                "--nproc_per_node=1",
+                "${workspaceFolder}/train_3d.py",
+                "--cfg-path", "/public/home/mengqi_rong8/Code/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2.yaml",
+            ]
+        },
+        {
+            "name": "train-stage1",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_3d.py",
+            "justMyCode": true,
+            "args": [
+                "--cfg-path", "/home/rmq2/3DLLM_2/lavis/projects/blip2_3d/train/pretrain_stage1.yaml",
+            ]
+        },
+        {
+            "name": "train-stage2",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_3d.py",
+            "justMyCode": true,
+            "args": [
+                "--cfg-path", "/public/home/mengqi_rong8/Code/3DLLM/lavis/projects/blip2_3d/train/pretrain_stage2_chatglm.yaml",
+            ]
+        },
+        {
+            "name": "caption",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/3d_caption.py",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "6,7",
+            },
+            "justMyCode": true,
+            "args": [
+                "--device", "cpu",
+            ]
+        },
+        {
+            "name": "ScanQA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_3d_scanqa.py",
+            "justMyCode": true,
+            "args": [
+                "--cfg-path", "/home/rmq2/3DLLM_2/lavis/projects/blip2_3d/train/pretrain_blip_t5_3d_qa.yaml",
+            ],
+            "env": {"CUDA_VISIBLE_DEVICES": "1"}
+        },
+        {
+            "name": "ScanQA-MultiGPU",
+            "type": "python",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "justMyCode": true,
+            "args": [
+                "--nproc_per_node=1",
+                "${workspaceFolder}/train_3d_scanqa.py",
+                "--cfg-path", "/home/rmq2/3DLLM_2/lavis/projects/blip2_3d/train/pretrain_blip_t5_3d_qa.yaml",
+            ],
+            "env": {"CUDA_VISIBLE_DEVICES": "1"}
+        },
+    ]
+}

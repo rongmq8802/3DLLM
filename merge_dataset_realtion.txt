@@ -1,0 +1,51 @@
+0-19
+['wall',
+ 'floor',
+ 'cabinet',
+ 'bed',
+ 'chair',
+ 'sofa',
+ 'table',
+ 'door',
+ 'window',
+ 'bookshelf',
+ 'picture',
+ 'counter',
+ 'desk',
+ 'curtain',
+ 'refridgerator',
+ 'shower curtain',
+ 'toilet',
+ 'sink',
+ 'bathtub',
+ 'otherfurniture']
+ 
+ 更改后的S3DIS
+ 
+ "0": 20,
+ ceiling   
+ "1": 1,
+ floor   
+ "2": 0,
+ wall   
+ "3": 21,
+ column   
+ "4": 22,
+ beam   
+ "5": 8,
+ window   
+ "6": 7,
+ door   
+ "7": 6,
+ table   
+ "8": 4,
+ chair
+ "9": 9,
+ bookcase   
+ "10": 5,
+ sofa   
+ "11": 23,
+ board   
+ "12": 19,
+ clutter   
+"""
